@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == 'admin@kalaakshi.com' ||
+        request.auth.token.email == 'admin@kalaakshi.in' ||
+        request.auth.token.email.matches('.*admin.*') ||
+        request.auth.token.admin == true
+      );
+    }
+
+    // 1. Cultural Events Catalog: Publicly readable, admin editable
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // 2. Kala Bazaar Products: Publicly readable, admin editable
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // 3. Visual Legacy Gallery: Publicly readable, admin editable
+    match /gallery/{imageId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // 4. Attendee Gate Passes & Bookings: Authenticated creation, private access
+    match /bookings/{bookingId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // 5. Orders & Craft Purchases: Authenticated creation, private access
+    match /orders/{orderId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // 6. User Profiles: Owner read/write, Admin full access
+    match /users/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+  }
+}
